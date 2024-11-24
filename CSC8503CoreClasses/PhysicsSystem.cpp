@@ -303,7 +303,41 @@ compare the collisions that we absolutely need to.
 
 */
 void PhysicsSystem::BroadPhase() {
+	// Clear previous broadphase collision data
+	broadphaseCollisions.clear();
 
+	// Create a quadtree with specified dimensions and depth
+	QuadTree<GameObject*> tree(Vector2(1024, 1024), 7, 6);
+
+	// Get iterators for all objects in the game world
+	std::vector<GameObject*>::const_iterator first;
+	std::vector<GameObject*>::const_iterator last;
+	gameWorld.GetObjectIterators(first, last);
+
+	// Insert all objects into the quadtree
+	for (auto i = first; i != last; ++i) {
+		Vector3 halfSizes;
+		if (!(*i)->GetBroadphaseAABB(halfSizes)) {
+			continue; // Skip objects without a valid AABB
+		}
+
+		Vector3 pos = (*i)->GetTransform().GetPosition();
+		tree.Insert(*i, pos, halfSizes);
+	}
+
+	// Operate on the quadtree to gather potential collision pairs
+	tree.OperateOnContents(
+		[&](std::list<QuadTreeEntry<GameObject*>>& data) {
+			CollisionDetection::CollisionInfo info;
+			for (auto i = data.begin(); i != data.end(); ++i) {
+				for (auto j = std::next(i); j != data.end(); ++j) {
+					// Avoid duplicate collision pairs (A vs B and B vs A)
+					info.a = std::min((*i).object, (*j).object);
+					info.b = std::max((*i).object, (*j).object);
+					broadphaseCollisions.insert(info);
+				}
+			}
+		});
 }
 
 /*
@@ -312,7 +346,21 @@ The broadphase will now only give us likely collisions, so we can now go through
 and work out if they are truly colliding, and if so, add them into the main collision list
 */
 void PhysicsSystem::NarrowPhase() {
+	for (auto i = broadphaseCollisions.begin(); i != broadphaseCollisions.end(); ++i) {
+		CollisionDetection::CollisionInfo info = *i;
 
+		// Perform precise collision detection
+		if (CollisionDetection::ObjectIntersection(info.a, info.b, info)) {
+			// Store the collision for processing
+			info.framesLeft = numCollisionFrames;
+
+			// Resolve the collision using impulses
+			ImpulseResolveCollision(*info.a, *info.b, info.point);
+
+			// Add to the main collision set
+			allCollisions.insert(info);
+		}
+	}
 }
 
 /*

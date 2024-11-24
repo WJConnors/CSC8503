@@ -40,16 +40,69 @@ namespace NCL {
 				delete[] children;
 			}
 
-			void Insert(T& object, const Vector3& objectPos, const Vector3& objectSize, int depthLeft, int maxSize) {
+			void Insert(const T& object, const Vector3& objectPos, const Vector3& objectSize, int depthLeft, int maxSize) {
+				// Check if the object's AABB intersects this node's AABB
+				if (!CollisionDetection::AABBTest(objectPos, Vector3(position.x, 0, position.y), objectSize, Vector3(size.x, 1000.0f, size.y))) {
+					return; // Object doesn't intersect this node
+				}
+
+				if (children) { // Node is not a leaf, pass the object to its children
+					for (int i = 0; i < 4; ++i) {
+						children[i].Insert(object, objectPos, objectSize, depthLeft - 1, maxSize);
+					}
+				}
+				else { // Node is a leaf, handle insertion here
+					contents.push_back(QuadTreeEntry<T>(object, objectPos, objectSize));
+
+					// Check if we need to split the node
+					if ((int)contents.size() > maxSize && depthLeft > 0) {
+						if (!children) {
+							Split();
+
+							// Reinsert the contents into the children
+							for (const auto& i : contents) {
+								for (int j = 0; j < 4; ++j) {
+									children[j].Insert(i.object, i.pos, i.size, depthLeft - 1, maxSize);
+								}
+							}
+
+							// Clear the contents of the current node
+							contents.clear();
+						}
+					}
+				}
 			}
 
 			void Split() {
+				// Calculate half the size of the current node
+				Vector2 halfSize = size / 2.0f;
+
+				// Allocate memory for the child nodes
+				children = new QuadTreeNode<T>[4];
+
+				// Create the child nodes, each occupying a quadrant of the current node
+				children[0] = QuadTreeNode<T>(position + Vector2(-halfSize.x, halfSize.y), halfSize); // Top-left
+				children[1] = QuadTreeNode<T>(position + Vector2(halfSize.x, halfSize.y), halfSize);  // Top-right
+				children[2] = QuadTreeNode<T>(position + Vector2(-halfSize.x, -halfSize.y), halfSize); // Bottom-left
+				children[3] = QuadTreeNode<T>(position + Vector2(halfSize.x, -halfSize.y), halfSize);  // Bottom-right
 			}
 
 			void DebugDraw() {
 			}
 
 			void OperateOnContents(QuadTreeFunc& func) {
+				if (children) {
+					// Recursively call OperateOnContents on each child node
+					for (int i = 0; i < 4; ++i) {
+						children[i].OperateOnContents(func);
+					}
+				}
+				else {
+					// If this is a leaf node and it contains data, apply the function
+					if (!contents.empty()) {
+						func(contents);
+					}
+				}
 			}
 
 		protected:
@@ -79,7 +132,7 @@ namespace NCL {
 			~QuadTree() {
 			}
 
-			void Insert(T object, const Vector3& pos, const Vector3& size) {
+			void Insert(const T& object, const Vector3& pos, const Vector3& size) {
 				root.Insert(object, pos, size, maxDepth, maxSize);
 			}
 
