@@ -257,6 +257,7 @@ void TutorialGame::InitCamera() {
 	world->GetMainCamera().SetPitch(-15.0f);
 	world->GetMainCamera().SetYaw(315.0f);
 	world->GetMainCamera().SetPosition(Vector3(-60, 40, 60));
+	//world->GetMainCamera().SetPosition(Vector3(500, 500, 500));
 	lockedObject = nullptr;
 }
 
@@ -264,6 +265,7 @@ void TutorialGame::InitWorld() {
 	world->ClearAndErase();
 	physics->Clear();
 
+	//BridgeConstraintTest();
 	InitMixedGridWorld(15, 15, 3.5f, 3.5f);
 
 	InitGameExamples();
@@ -460,6 +462,44 @@ void TutorialGame::InitCubeGridWorld(int numRows, int numCols, float rowSpacing,
 		}
 	}
 }
+
+void TutorialGame::BridgeConstraintTest() {
+	// Define the size of each cube in the rope bridge
+	Vector3 cubeSize = Vector3(8, 8, 8);
+
+	// Set the mass and distance properties
+	float invCubeMass = 5.0f; // The inverse mass of the cubes
+	int numLinks = 10;        // Number of links in the bridge
+	float maxDistance = 30.0f; // Maximum distance allowed by the constraint
+	float cubeDistance = 20.0f; // Spacing between cubes
+
+	// Define the starting position of the bridge
+	Vector3 startPos = Vector3(500, 500, 500);
+
+	// Create the start and end points with infinite mass (fixed in place)
+	GameObject* start = AddCubeToWorld(startPos, cubeSize, 0.0f);
+	GameObject* end = AddCubeToWorld(startPos + Vector3((numLinks + 2) * cubeDistance, 0, 0), cubeSize, 0.0f);
+
+	// Keep track of the previous cube in the chain
+	GameObject* previous = start;
+
+	// Create the intermediate cubes and connect them with constraints
+	for (int i = 0; i < numLinks; ++i) {
+		GameObject* block = AddCubeToWorld(startPos + Vector3((i + 1) * cubeDistance, 0, 0), cubeSize, invCubeMass);
+
+		// Add a position constraint between the previous and current cube
+		PositionConstraint* constraint = new PositionConstraint(previous, block, maxDistance);
+		world->AddConstraint(constraint);
+
+		// Update the previous cube to the current one
+		previous = block;
+	}
+
+	// Add the final constraint to connect the last cube to the end point
+	PositionConstraint* constraint = new PositionConstraint(previous, end, maxDistance);
+	world->AddConstraint(constraint);
+}
+
 
 /*
 Every frame, this code will let you perform a raycast, to see if there's an object
