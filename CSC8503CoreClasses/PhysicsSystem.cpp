@@ -192,6 +192,37 @@ a particular pair will only be added once, so objects colliding for
 multiple frames won't flood the set with duplicates.
 */
 void PhysicsSystem::BasicCollisionDetection() {
+	std::vector<GameObject*>::const_iterator first;
+	std::vector<GameObject*>::const_iterator last;
+
+	// Get all objects in the game world
+	gameWorld.GetObjectIterators(first, last);
+
+	// Loop through all pairs of objects
+	for (auto i = first; i != last; ++i) {
+		if ((*i)->GetPhysicsObject() == nullptr) {
+			continue; // Skip objects without physics components
+		}
+
+		for (auto j = i + 1; j != last; ++j) {
+			if ((*j)->GetPhysicsObject() == nullptr) {
+				continue; // Skip objects without physics components
+			}
+
+			CollisionDetection::CollisionInfo info;
+
+			// Check for collision between the two objects
+			if (CollisionDetection::ObjectIntersection(*i, *j, info)) {
+				// Output collision to the console (optional)
+				std::cout << "Collision between " << (*i)->GetName()
+					<< " and " << (*j)->GetName() << std::endl;
+
+				// Track collision information
+				info.framesLeft = numCollisionFrames;
+				allCollisions.insert(info);
+			}
+		}
+	}
 }
 
 /*

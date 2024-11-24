@@ -240,19 +240,124 @@ bool CollisionDetection::AABBTest(const Vector3& posA, const Vector3& posB, cons
 //AABB/AABB Collisions
 bool CollisionDetection::AABBIntersection(const AABBVolume& volumeA, const Transform& worldTransformA,
 	const AABBVolume& volumeB, const Transform& worldTransformB, CollisionInfo& collisionInfo) {
-	return false;
+	// Get positions and sizes of the AABBs
+	Vector3 boxAPos = worldTransformA.GetPosition();
+	Vector3 boxBPos = worldTransformB.GetPosition();
+
+	Vector3 boxASize = volumeA.GetHalfDimensions();
+	Vector3 boxBSize = volumeB.GetHalfDimensions();
+
+	// Check if AABBs overlap
+	if (!AABBTest(boxAPos, boxBPos, boxASize, boxBSize)) {
+		return false; // No collision
+	}
+
+	// Define face normals for each axis
+	static const Vector3 faces[6] = {
+		Vector3(-1, 0, 0), Vector3(1, 0, 0),
+		Vector3(0, -1, 0), Vector3(0, 1, 0),
+		Vector3(0, 0, -1), Vector3(0, 0, 1),
+	};
+
+	// Compute the min and max extents of each AABB
+	Vector3 maxA = boxAPos + boxASize;
+	Vector3 minA = boxAPos - boxASize;
+
+	Vector3 maxB = boxBPos + boxBSize;
+	Vector3 minB = boxBPos - boxBSize;
+
+	// Calculate penetration distances on all axes
+	float distances[6] = {
+		maxB.x - minA.x, // Distance of box B to the left of box A
+		maxA.x - minB.x, // Distance of box B to the right of box A
+		maxB.y - minA.y, // Distance of box B to the bottom of box A
+		maxA.y - minB.y, // Distance of box B to the top of box A
+		maxB.z - minA.z, // Distance of box B to the far side of box A
+		maxA.z - minB.z  // Distance of box B to the near side of box A
+	};
+
+	float penetration = FLT_MAX;
+	Vector3 bestAxis;
+
+	// Find the axis of minimum penetration
+	for (int i = 0; i < 6; ++i) {
+		if (distances[i] < penetration) {
+			penetration = distances[i];
+			bestAxis = faces[i];
+		}
+	}
+
+	// Populate collision info with the best axis and penetration depth
+	collisionInfo.AddContactPoint(Vector3(), Vector3(), bestAxis, penetration);
+	return true; // Collision detected
 }
 
 //Sphere / Sphere Collision
 bool CollisionDetection::SphereIntersection(const SphereVolume& volumeA, const Transform& worldTransformA,
 	const SphereVolume& volumeB, const Transform& worldTransformB, CollisionInfo& collisionInfo) {
-	return false;
+	// Calculate the sum of the radii
+	float radii = volumeA.GetRadius() + volumeB.GetRadius();
+
+	// Compute the vector between sphere centers
+	Vector3 delta = worldTransformB.GetPosition() - worldTransformA.GetPosition();
+
+	// Determine the distance between the sphere centers
+	float deltaLength = Vector::Length(delta);
+
+	// Check if the distance is less than the sum of the radii
+	if (deltaLength < radii) {
+		// Calculate penetration depth
+		float penetration = radii - deltaLength;
+
+		// Compute collision normal
+		Vector3 normal = Vector::Normalise(delta);
+
+		// Calculate collision points for each sphere
+		Vector3 localA = normal * volumeA.GetRadius();
+		Vector3 localB = -normal * volumeB.GetRadius();
+
+		// Populate collision info
+		collisionInfo.AddContactPoint(localA, localB, normal, penetration);
+		return true; // Collision detected
+	}
+
+	return false; // No collision
 }
 
 //AABB - Sphere Collision
 bool CollisionDetection::AABBSphereIntersection(const AABBVolume& volumeA, const Transform& worldTransformA,
 	const SphereVolume& volumeB, const Transform& worldTransformB, CollisionInfo& collisionInfo) {
-	return false;
+	// Get the half-dimensions of the AABB
+	Vector3 boxSize = volumeA.GetHalfDimensions();
+
+	// Compute the relative position of the sphere to the AABB
+	Vector3 delta = worldTransformB.GetPosition() - worldTransformA.GetPosition();
+
+	// Clamp the sphere's position to the AABB's boundaries
+	Vector3 closestPointOnBox = Vector::Clamp(delta, -boxSize, boxSize);
+
+	// Determine the distance between the sphere's position and the closest point
+	Vector3 localPoint = delta - closestPointOnBox;
+	float distance = Vector::Length(localPoint);
+
+	// Check if the distance is less than the sphere's radius
+	if (distance < volumeB.GetRadius()) {
+		// Compute collision normal
+		Vector3 collisionNormal = Vector::Normalise(localPoint);
+
+		// Calculate penetration depth
+		float penetration = volumeB.GetRadius() - distance;
+
+		// Collision points
+		Vector3 localA = Vector3(); // AABB collision point is at its origin
+		Vector3 localB = -collisionNormal * volumeB.GetRadius();
+
+		// Populate collision info
+		collisionInfo.AddContactPoint(localA, localB, collisionNormal, penetration);
+		return true; // Collision detected
+	}
+
+	return false; // No collision
 }
 
 bool  CollisionDetection::OBBSphereIntersection(const OBBVolume& volumeA, const Transform& worldTransformA,
