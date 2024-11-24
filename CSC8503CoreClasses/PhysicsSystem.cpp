@@ -213,11 +213,10 @@ void PhysicsSystem::BasicCollisionDetection() {
 
 			// Check for collision between the two objects
 			if (CollisionDetection::ObjectIntersection(*i, *j, info)) {
-				// Output collision to the console (optional)
-				std::cout << "Collision between " << (*i)->GetName()
-					<< " and " << (*j)->GetName() << std::endl;
+				// Resolve the collision using impulses
+				ImpulseResolveCollision(*info.a, *info.b, info.point);
 
-				// Track collision information
+				// Add collision info to the set for tracking
 				info.framesLeft = numCollisionFrames;
 				allCollisions.insert(info);
 			}
@@ -232,7 +231,67 @@ so that objects separate back out.
 
 */
 void PhysicsSystem::ImpulseResolveCollision(GameObject& a, GameObject& b, CollisionDetection::ContactPoint& p) const {
+	// Get physics objects and transforms
+	PhysicsObject* physA = a.GetPhysicsObject();
+	PhysicsObject* physB = b.GetPhysicsObject();
 
+	Transform& transformA = a.GetTransform();
+	Transform& transformB = b.GetTransform();
+
+	// Total inverse mass
+	float totalMass = physA->GetInverseMass() + physB->GetInverseMass();
+
+	if (totalMass == 0) {
+		return; // Two static objects
+	}
+
+	// Projection method: Separate objects based on penetration
+	transformA.SetPosition(transformA.GetPosition() -
+		(p.normal * p.penetration * (physA->GetInverseMass() / totalMass)));
+
+	transformB.SetPosition(transformB.GetPosition() +
+		(p.normal * p.penetration * (physB->GetInverseMass() / totalMass)));
+
+	// Calculate relative collision points
+	Vector3 relativeA = p.localA;
+	Vector3 relativeB = p.localB;
+
+	// Compute angular velocities at the collision point
+	Vector3 angVelocityA = Vector::Cross(physA->GetAngularVelocity(), relativeA);
+	Vector3 angVelocityB = Vector::Cross(physB->GetAngularVelocity(), relativeB);
+
+	// Combine linear and angular velocities
+	Vector3 fullVelocityA = physA->GetLinearVelocity() + angVelocityA;
+	Vector3 fullVelocityB = physB->GetLinearVelocity() + angVelocityB;
+
+	// Compute relative velocity at the contact point
+	Vector3 contactVelocity = fullVelocityB - fullVelocityA;
+
+	// Compute impulse scalar
+	float impulseForce = Vector::Dot(contactVelocity, p.normal);
+
+	// Compute inertia effects
+	Vector3 inertiaA = Vector::Cross(physA->GetInertiaTensor() *
+		Vector::Cross(relativeA, p.normal), relativeA);
+	Vector3 inertiaB = Vector::Cross(physB->GetInertiaTensor() *
+		Vector::Cross(relativeB, p.normal), relativeB);
+	float angularEffect = Vector::Dot(inertiaA + inertiaB, p.normal);
+
+	// Coefficient of restitution (energy conservation factor)
+	float cRestitution = 0.66f; // Modify this value for different materials
+
+	// Final impulse magnitude
+	float j = (-(1.0f + cRestitution) * impulseForce) /
+		(totalMass + angularEffect);
+
+	Vector3 fullImpulse = p.normal * j;
+
+	// Apply linear and angular impulses to both objects
+	physA->ApplyLinearImpulse(-fullImpulse);
+	physB->ApplyLinearImpulse(fullImpulse);
+
+	physA->ApplyAngularImpulse(Vector::Cross(relativeA, -fullImpulse));
+	physB->ApplyAngularImpulse(Vector::Cross(relativeB, fullImpulse));
 }
 
 /*
