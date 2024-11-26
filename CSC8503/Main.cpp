@@ -31,6 +31,46 @@ using namespace CSC8503;
 #include <thread>
 #include <sstream>
 
+void TestStateMachine() {
+	StateMachine* testMachine = new StateMachine();
+
+	int data = 0;
+
+	// State A definition
+	State* A = new State([&](float dt)->void {
+		std::cout << "I'm in state A!\n";
+		data++;
+		});
+
+	// State B definition
+	State* B = new State([&](float dt)->void {
+		std::cout << "I'm in state B!\n";
+		data--;
+		});
+
+	// State transition from A to B
+	StateTransition* stateAB = new StateTransition(A, B, [&](void)->bool {
+		return data > 10;
+		});
+
+	// State transition from B to A
+	StateTransition* stateBA = new StateTransition(B, A, [&](void)->bool {
+		return data < 0;
+		});
+
+	// Add states and transitions to the state machine
+	testMachine->AddState(A);
+	testMachine->AddState(B);
+	testMachine->AddTransition(stateAB);
+	testMachine->AddTransition(stateBA);
+
+	// Run the state machine for 100 iterations
+	for (int i = 0; i < 100; ++i) {
+		testMachine->Update(1.0f);
+	}
+}
+
+
 void TestPathfinding() {
 }
 
@@ -50,6 +90,7 @@ hide or show the
 
 */
 int main() {
+	TestStateMachine();
 	WindowInitialisation initInfo;
 	initInfo.width		= 1280;
 	initInfo.height		= 720;
