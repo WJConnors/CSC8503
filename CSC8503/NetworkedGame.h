@@ -1,6 +1,7 @@
 #pragma once
 #include "TutorialGame.h"
 #include "NetworkBase.h"
+#include <unordered_map>
 
 namespace NCL {
 	namespace CSC8503 {

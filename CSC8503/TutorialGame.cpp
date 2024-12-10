@@ -26,7 +26,8 @@ TutorialGame::TutorialGame() : controller(*Window::GetWindow()->GetKeyboard(), *
 	physics		= new PhysicsSystem(*world);
 
 	forceMagnitude	= 10.0f;
-	useGravity		= false;
+	useGravity		= true;
+	physics->UseGravity(useGravity);
 	inSelectionMode = false;
 
 	world->GetMainCamera().SetController(controller);
@@ -195,6 +196,8 @@ void TutorialGame::LockedObjectMovement() {
 	Matrix4 camWorld	= Matrix::Inverse(view);
 
 	Vector3 rightAxis = Vector3(camWorld.GetColumn(0)); //view is inverse of model!
+	rightAxis.y = 0.0f; // Flatten to the XZ plane
+	rightAxis = Vector::Normalise(rightAxis);
 
 	//forward is more tricky -  camera forward is 'into' the screen...
 	//so we can take a guess, and use the cross of straight up, and
@@ -204,16 +207,41 @@ void TutorialGame::LockedObjectMovement() {
 	fwdAxis.y = 0.0f;
 	fwdAxis = Vector::Normalise(fwdAxis);
 
-	if (Window::GetKeyboard()->KeyDown(KeyCodes::UP)) {
+	const float moveForce = 10.0f;
+	fwdAxis *= moveForce;
+	rightAxis *= moveForce;
+
+	if (Window::GetKeyboard()->KeyDown(KeyCodes::W)) {
 		selectionObject->GetPhysicsObject()->AddForce(fwdAxis);
 	}
 
-	if (Window::GetKeyboard()->KeyDown(KeyCodes::DOWN)) {
+	if (Window::GetKeyboard()->KeyDown(KeyCodes::S)) {
 		selectionObject->GetPhysicsObject()->AddForce(-fwdAxis);
 	}
 
-	if (Window::GetKeyboard()->KeyDown(KeyCodes::NEXT)) {
-		selectionObject->GetPhysicsObject()->AddForce(Vector3(0,-10,0));
+	if (Window::GetKeyboard()->KeyDown(KeyCodes::A)) {
+		selectionObject->GetPhysicsObject()->AddForce(-rightAxis);
+	}
+
+	if (Window::GetKeyboard()->KeyDown(KeyCodes::D)) {
+		selectionObject->GetPhysicsObject()->AddForce(rightAxis);
+	}
+
+	if (Window::GetKeyboard()->KeyPressed(KeyCodes::SPACE)) {
+		// Create a ray pointing downwards from the locked object's position
+		Vector3 startPosition = selectionObject->GetTransform().GetPosition();
+		Vector3 rayDirection = Vector3(0, -1, 0); // Downward direction
+		Ray downwardRay(startPosition, rayDirection);
+
+		// Collision detection
+		RayCollision collision;
+		const float jumpThreshold = 1.5f; // Adjust this value based on object height
+		if (world->Raycast(downwardRay, collision, true, selectionObject)) {
+			// Jump only if the collision is within the jump threshold
+			if (collision.rayDistance <= jumpThreshold) {
+				selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 100, 0));
+			}
+		}
 	}
 }
 
@@ -270,7 +298,7 @@ void TutorialGame::InitWorld() {
 	physics->Clear();
 
 	//BridgeConstraintTest();
-	InitMixedGridWorld(15, 15, 3.5f, 3.5f);
+	InitMixedGridWorld(15, 15, 7.0f, 7.0f);
 
 	InitGameExamples();
 	InitDefaultFloor();
@@ -335,6 +363,7 @@ GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius
 GameObject* TutorialGame::AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass) {
 	GameObject* cube = new GameObject();
 
+	//OBBVolume* volume = new OBBVolume(dimensions);
 	AABBVolume* volume = new AABBVolume(dimensions);
 	cube->SetBoundingVolume((CollisionVolume*)volume);
 
@@ -364,7 +393,8 @@ GameObject* TutorialGame::AddPlayerToWorld(const Vector3& position) {
 
 	character->GetTransform()
 		.SetScale(Vector3(meshSize, meshSize, meshSize))
-		.SetPosition(position);
+		.SetPosition(position)
+		.SetOrientation(Quaternion(0.0f, 1.0f, 0.0f, 0.0f));
 
 	character->SetRenderObject(new RenderObject(&character->GetTransform(), catMesh, nullptr, basicShader));
 	character->SetPhysicsObject(new PhysicsObject(&character->GetTransform(), character->GetBoundingVolume()));

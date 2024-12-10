@@ -360,8 +360,8 @@ int main() {
 
 	//TestPathfinding();
 
-	//TutorialGame* g = new TutorialGame();
-	NetworkedGame* g = new NetworkedGame();
+	TutorialGame* g = new TutorialGame();
+	//NetworkedGame* g = new NetworkedGame();
 	w->GetTimer().GetTimeDeltaSeconds(); //Clear the timer so we don't get a larget first dt!
 	while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
 		float dt = w->GetTimer().GetTimeDeltaSeconds();
