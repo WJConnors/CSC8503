@@ -140,6 +140,7 @@ void TutorialGame::UpdateGame(float dt) {
 
 	Debug::DrawLine(Vector3(), Vector3(0, 100, 0), Vector4(1, 0, 0, 1));
 
+
 	SelectObject();
 	MoveSelectedObject();
 
@@ -235,11 +236,11 @@ void TutorialGame::LockedObjectMovement() {
 
 		// Collision detection
 		RayCollision collision;
-		const float jumpThreshold = 1.5f; // Adjust this value based on object height
+		const float jumpThreshold = 1.0f; // Adjust this value based on object height
 		if (world->Raycast(downwardRay, collision, true, selectionObject)) {
 			// Jump only if the collision is within the jump threshold
 			if (collision.rayDistance <= jumpThreshold) {
-				selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 100, 0));
+				selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 1000, 0));
 			}
 		}
 	}
@@ -387,7 +388,7 @@ GameObject* TutorialGame::AddPlayerToWorld(const Vector3& position) {
 	float inverseMass	= 0.5f;
 
 	GameObject* character = new GameObject();
-	SphereVolume* volume  = new SphereVolume(1.0f);
+	SphereVolume* volume  = new SphereVolume(0.2f);
 
 	character->SetBoundingVolume((CollisionVolume*)volume);
 
