@@ -83,9 +83,9 @@ TutorialGame::~TutorialGame()	{
 }
 
 void TutorialGame::UpdateGame(float dt) {
-	if (!inSelectionMode) {
+	/*if (!inSelectionMode) {
 		world->GetMainCamera().UpdateCamera(dt);
-	}
+	}*/
 	if (lockedObject != nullptr) {
 		Vector3 objPos = lockedObject->GetTransform().GetPosition();
 		Vector3 camPos = objPos + lockedOffset;
@@ -102,18 +102,19 @@ void TutorialGame::UpdateGame(float dt) {
 		world->GetMainCamera().SetYaw(angles.y);
 	}
 
-	UpdateKeys();
+	//UpdateKeys();
+	LockedObjectMovement();
 
-	if (useGravity) {
+	/*if (useGravity) {
 		Debug::Print("(G)ravity on", Vector2(5, 95), Debug::RED);
 	}
 	else {
 		Debug::Print("(G)ravity off", Vector2(5, 95), Debug::RED);
-	}
+	}*/
 	//This year we can draw debug textures as well!
 	//Debug::DrawTex(*basicTex, Vector2(10, 10), Vector2(5, 5), Debug::MAGENTA);
 
-	RayCollision closestCollision;
+	/*RayCollision closestCollision;
 	if (Window::GetKeyboard()->KeyPressed(KeyCodes::K) && selectionObject) {
 		Vector3 rayPos;
 		Vector3 rayDir;
@@ -132,17 +133,17 @@ void TutorialGame::UpdateGame(float dt) {
 
 			objClosest->GetRenderObject()->SetColour(Vector4(1, 0, 1, 1));
 		}
-	}
+	}*/
 
 	if (testStateObject) {
 		testStateObject->Update(dt);
 	}
 
-	Debug::DrawLine(Vector3(), Vector3(0, 100, 0), Vector4(1, 0, 0, 1));
+	//Debug::DrawLine(Vector3(), Vector3(0, 100, 0), Vector4(1, 0, 0, 1));
 
 
-	SelectObject();
-	MoveSelectedObject();
+	//SelectObject();
+	//MoveSelectedObject();
 
 	world->UpdateWorld(dt);
 	renderer->Update(dt);
@@ -301,7 +302,7 @@ void TutorialGame::InitWorld() {
 	physics->Clear();
 
 	//BridgeConstraintTest();
-	InitMixedGridWorld(15, 15, 7.0f, 7.0f);
+	//InitMixedGridWorld(15, 15, 7.0f, 7.0f);
 
 	InitGameExamples();
 	InitDefaultFloor();
@@ -406,6 +407,10 @@ GameObject* TutorialGame::AddPlayerToWorld(const Vector3& position) {
 	character->GetPhysicsObject()->InitSphereInertia();
 
 	world->AddGameObject(character);
+
+	selectionObject = character;
+	lockedObject = character;
+	selectionObject->GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
 
 	return character;
 }
