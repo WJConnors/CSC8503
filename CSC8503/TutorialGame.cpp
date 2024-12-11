@@ -228,7 +228,8 @@ void TutorialGame::LockedObjectMovement() {
 		selectionObject->GetPhysicsObject()->AddForce(rightAxis);
 	}
 
-	if (Window::GetKeyboard()->KeyPressed(KeyCodes::SPACE)) {
+	float currentTime = Window::GetTimer().GetTotalTimeSeconds();
+	if (Window::GetKeyboard()->KeyPressed(KeyCodes::SPACE) && (currentTime - lastJumpTime > jumpCooldown)) {
 		// Create a ray pointing downwards from the locked object's position
 		Vector3 startPosition = selectionObject->GetTransform().GetPosition();
 		Vector3 rayDirection = Vector3(0, -1, 0); // Downward direction
@@ -240,7 +241,8 @@ void TutorialGame::LockedObjectMovement() {
 		if (world->Raycast(downwardRay, collision, true, selectionObject)) {
 			// Jump only if the collision is within the jump threshold
 			if (collision.rayDistance <= jumpThreshold) {
-				selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 1000, 0));
+				selectionObject->GetPhysicsObject()->AddForce(Vector3(0, 3000, 0));
+				lastJumpTime = currentTime;
 			}
 		}
 	}

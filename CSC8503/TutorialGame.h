@@ -94,6 +94,9 @@ namespace NCL {
 
 			StateGameObject* AddStateObjectToWorld(const Vector3& position);
 			StateGameObject* testStateObject;
+
+			float lastJumpTime = -1.0f;
+			const float jumpCooldown = 0.3f;
 		};
 	}
 }
