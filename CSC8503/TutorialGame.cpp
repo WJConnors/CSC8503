@@ -60,7 +60,7 @@ namespace NCL {
 
 		protected:
 			void Wait() {
-				GetRenderObject()->SetColour(Vector4(1, 1, 1, 1));
+				home ? GetRenderObject()->SetColour(Vector4(0, 0, 1, 1)) : GetRenderObject()->SetColour(Vector4(1, 1, 1, 1));
 				GetPhysicsObject()->ClearForces();
 			}
 
@@ -72,6 +72,10 @@ namespace NCL {
 				Vector3 movement = direction * 1.0f * dt;
 				GetTransform().SetPosition(curPos + movement);
 				GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
+
+				if (curPos.x >= -2.5f && curPos.x <= 2.5f && curPos.z >= -2.5f && curPos.z <= 2.5f) {
+					home = true;
+				}
 			}
 
 			StateMachine* stateMachine;			
@@ -215,7 +219,10 @@ void TutorialGame::UpdateGame(float dt) {
 		kitten->Update(dt);
 	}
 
-	//Debug::DrawLine(Vector3(), Vector3(0, 100, 0), Vector4(1, 0, 0, 1));
+	Debug::DrawLine(Vector3(2.5, 0, -2.5), Vector3(5, 100, -5), Vector4(0, 1, 0, 1));
+	Debug::DrawLine(Vector3(2.5, 0, 2.5), Vector3(5, 100, 5), Vector4(0, 1, 0, 1));
+	Debug::DrawLine(Vector3(-2.5, 0, 2.5), Vector3(5, 100, 5), Vector4(0, 1, 0, 1));
+	Debug::DrawLine(Vector3(-2.5, 0, -2.5), Vector3(5, 100, 5), Vector4(0, 1, 0, 1));
 
 
 	//SelectObject();
