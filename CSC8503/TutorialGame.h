@@ -11,6 +11,7 @@
 
 namespace NCL {
 	namespace CSC8503 {
+		class Kitten;
 		class TutorialGame		{
 		public:
 			TutorialGame();
@@ -50,6 +51,7 @@ namespace NCL {
 			GameObject* AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
 
 			GameObject* AddPlayerToWorld(const Vector3& position);
+			Kitten* AddKittenToWorld(const Vector3& position);
 			GameObject* AddEnemyToWorld(const Vector3& position);
 			GameObject* AddBonusToWorld(const Vector3& position);
 
@@ -94,6 +96,9 @@ namespace NCL {
 
 			StateGameObject* AddStateObjectToWorld(const Vector3& position);
 			StateGameObject* testStateObject;
+
+			GameObject* player;
+			vector<Kitten*> kittens;
 
 			float lastJumpTime = -1.0f;
 			const float jumpCooldown = 0.3f;

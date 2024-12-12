@@ -7,6 +7,79 @@
 #include "PositionConstraint.h"
 #include "OrientationConstraint.h"
 #include "StateGameObject.h"
+#include "StateTransition.h"
+#include "StateMachine.h"
+#include "State.h"
+
+namespace NCL {
+	namespace CSC8503 {
+		class StateMachine;
+		class Kitten : public GameObject {
+		public:
+			Kitten(GameObject* playerCopy) : player(playerCopy), home(false) {
+				stateMachine = new StateMachine();
+
+				State* still = new State([&](float dt)->void {
+					this->Wait();
+					});
+
+				State* follow = new State([&](float dt)->void {
+					this->FollowPlayer(dt);
+					});
+
+				stateMachine->AddState(still);
+				stateMachine->AddState(follow);
+
+				stateMachine->AddTransition(new StateTransition(still, follow, [&]()->bool {
+					Vector3 playerPos = player->GetTransform().GetPosition();
+					Vector3 curPos = this->GetTransform().GetPosition();
+					Vector3 difference = playerPos - curPos;
+					float distance = Vector::Length(difference);
+					std::cout << distance << std::endl;
+					return (!home) && distance < 5;
+					}));
+
+				stateMachine->AddTransition(new StateTransition(follow, still, [&]()->bool {
+					Vector3 playerPos = player->GetTransform().GetPosition();
+					Vector3 curPos = GetTransform().GetPosition();
+					Vector3 difference = playerPos - curPos;
+					float distance = Vector::Length(difference);
+					return home || distance > 2;
+					}));
+			}
+
+			~Kitten() {
+				delete stateMachine;
+			}
+
+			virtual void Update(float dt) {
+				stateMachine->Update(dt);
+			}
+
+			GameObject* player;
+
+		protected:
+			void Wait() {
+				GetRenderObject()->SetColour(Vector4(1, 1, 1, 1));
+				GetPhysicsObject()->ClearForces();
+			}
+
+			void FollowPlayer(float dt) {
+				Vector3 playerPos = player->GetTransform().GetPosition();
+				Vector3 curPos = GetTransform().GetPosition();
+				Vector3 direction = playerPos - curPos;
+				direction = Vector::Normalise(direction);
+				Vector3 movement = direction * 1.0f * dt;
+				GetTransform().SetPosition(curPos + movement);
+				GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
+			}
+
+			StateMachine* stateMachine;			
+
+			bool home;
+		};
+	}
+}
 
 
 
@@ -137,6 +210,9 @@ void TutorialGame::UpdateGame(float dt) {
 
 	if (testStateObject) {
 		testStateObject->Update(dt);
+	}
+	for (auto kitten : kittens) {
+		kitten->Update(dt);
 	}
 
 	//Debug::DrawLine(Vector3(), Vector3(0, 100, 0), Vector4(1, 0, 0, 1));
@@ -304,9 +380,11 @@ void TutorialGame::InitWorld() {
 	//BridgeConstraintTest();
 	//InitMixedGridWorld(15, 15, 7.0f, 7.0f);
 
-	InitGameExamples();
+	//InitGameExamples();
+	AddPlayerToWorld(Vector3(0, 2, 0));
+	kittens.push_back(AddKittenToWorld(Vector3(0, 2, -5)));
 	InitDefaultFloor();
-	testStateObject = AddStateObjectToWorld(Vector3(0, 10, 0));
+	//testStateObject = AddStateObjectToWorld(Vector3(0, 10, 0));
 }
 
 /*
@@ -390,29 +468,54 @@ GameObject* TutorialGame::AddPlayerToWorld(const Vector3& position) {
 	float meshSize		= 1.0f;
 	float inverseMass	= 0.5f;
 
-	GameObject* character = new GameObject();
+	player = new GameObject();
 	SphereVolume* volume  = new SphereVolume(0.2f);
 
-	character->SetBoundingVolume((CollisionVolume*)volume);
+	player->SetBoundingVolume((CollisionVolume*)volume);
 
-	character->GetTransform()
+	player->GetTransform()
 		.SetScale(Vector3(meshSize, meshSize, meshSize))
 		.SetPosition(position)
 		.SetOrientation(Quaternion(0.0f, 1.0f, 0.0f, 0.0f));
 
-	character->SetRenderObject(new RenderObject(&character->GetTransform(), catMesh, nullptr, basicShader));
-	character->SetPhysicsObject(new PhysicsObject(&character->GetTransform(), character->GetBoundingVolume()));
+	player->SetRenderObject(new RenderObject(&player->GetTransform(), catMesh, nullptr, basicShader));
+	player->SetPhysicsObject(new PhysicsObject(&player->GetTransform(), player->GetBoundingVolume()));
 
-	character->GetPhysicsObject()->SetInverseMass(inverseMass);
-	character->GetPhysicsObject()->InitSphereInertia();
+	player->GetPhysicsObject()->SetInverseMass(inverseMass);
+	player->GetPhysicsObject()->InitSphereInertia();
 
-	world->AddGameObject(character);
+	world->AddGameObject(player);
 
-	selectionObject = character;
-	lockedObject = character;
+	selectionObject = player;
+	lockedObject = player;
 	selectionObject->GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
 
-	return character;
+	return player;
+}
+
+Kitten* TutorialGame::AddKittenToWorld(const Vector3& position) {
+	float meshSize = 0.5f;
+	float inverseMass = 2.0f;
+
+	Kitten* kitten = new Kitten(player);
+	SphereVolume* volume = new SphereVolume(0.2f);
+
+	kitten->SetBoundingVolume((CollisionVolume*)volume);
+
+	kitten->GetTransform()
+		.SetScale(Vector3(meshSize, meshSize, meshSize))
+		.SetPosition(position)
+		.SetOrientation(Quaternion(0.0f, -1.0f, 0.0f, 0.0f));
+
+	kitten->SetRenderObject(new RenderObject(&kitten->GetTransform(), catMesh, nullptr, basicShader));
+	kitten->SetPhysicsObject(new PhysicsObject(&kitten->GetTransform(), kitten->GetBoundingVolume()));
+
+	kitten->GetPhysicsObject()->SetInverseMass(inverseMass);
+	kitten->GetPhysicsObject()->InitSphereInertia();
+
+	world->AddGameObject(kitten);
+
+	return kitten;
 }
 
 GameObject* TutorialGame::AddEnemyToWorld(const Vector3& position) {
@@ -480,11 +583,11 @@ StateGameObject* TutorialGame::AddStateObjectToWorld(const Vector3& position) {
 }
 
 void TutorialGame::InitDefaultFloor() {
-	AddFloorToWorld(Vector3(0, -20, 0));
+	AddFloorToWorld(Vector3(0, -1, 0));
 }
 
 void TutorialGame::InitGameExamples() {
-	AddPlayerToWorld(Vector3(0, 5, 0));
+	AddPlayerToWorld(Vector3(0, 2, 0));
 	AddEnemyToWorld(Vector3(5, 5, 0));
 	AddBonusToWorld(Vector3(10, 5, 0));
 }
@@ -648,5 +751,4 @@ void TutorialGame::MoveSelectedObject() {
 		}
 	}
 }
-
 
