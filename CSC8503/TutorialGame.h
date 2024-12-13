@@ -41,6 +41,8 @@ namespace NCL {
 
 			void InitDefaultFloor();
 
+			void InitPlatformChallenge();
+
 			bool SelectObject();
 			void MoveSelectedObject();
 			void DebugObjectMovement();
@@ -49,6 +51,7 @@ namespace NCL {
 			GameObject* AddFloorToWorld(const Vector3& position);
 			GameObject* AddSphereToWorld(const Vector3& position, float radius, float inverseMass = 10.0f);
 			GameObject* AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
+			GameObject* AddOBBCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass = 10.0f);
 
 			GameObject* AddPlayerToWorld(const Vector3& position);
 			Kitten* AddKittenToWorld(const Vector3& position);
@@ -102,6 +105,7 @@ namespace NCL {
 
 			float lastJumpTime = -1.0f;
 			const float jumpCooldown = 0.3f;
+			float sphereSpawnTimer = 0.0f;
 		};
 	}
 }

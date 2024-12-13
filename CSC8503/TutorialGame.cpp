@@ -10,10 +10,13 @@
 #include "StateTransition.h"
 #include "StateMachine.h"
 #include "State.h"
+#include "PushdownMachine.h"
+#include "PushdownState.h"
+
+#include <random>
 
 namespace NCL {
 	namespace CSC8503 {
-		class StateMachine;
 		class Kitten : public GameObject {
 		public:
 			Kitten(GameObject* playerCopy) : player(playerCopy), home(false) {
@@ -35,7 +38,6 @@ namespace NCL {
 					Vector3 curPos = this->GetTransform().GetPosition();
 					Vector3 difference = playerPos - curPos;
 					float distance = Vector::Length(difference);
-					std::cout << distance << std::endl;
 					return (!home) && distance < 5;
 					}));
 
@@ -44,7 +46,7 @@ namespace NCL {
 					Vector3 curPos = GetTransform().GetPosition();
 					Vector3 difference = playerPos - curPos;
 					float distance = Vector::Length(difference);
-					return home || distance > 2;
+					return home || distance > 5;
 					}));
 			}
 
@@ -69,7 +71,7 @@ namespace NCL {
 				Vector3 curPos = GetTransform().GetPosition();
 				Vector3 direction = playerPos - curPos;
 				direction = Vector::Normalise(direction);
-				Vector3 movement = direction * 1.0f * dt;
+				Vector3 movement = direction * 4.0f * dt;
 				GetTransform().SetPosition(curPos + movement);
 				GetRenderObject()->SetColour(Vector4(0, 1, 0, 1));
 
@@ -84,8 +86,6 @@ namespace NCL {
 		};
 	}
 }
-
-
 
 using namespace NCL;
 using namespace CSC8503;
@@ -159,6 +159,19 @@ TutorialGame::~TutorialGame()	{
 	delete world;
 }
 
+/*class StartScreen : public PushdownState {
+	PushdownResult OnUpdate(float dt, PushdownState** newState) override {
+		Debug::Print("Press space to begin", Vector2(5, 95), Debug::RED);
+		if (Window::GetKeyboard()->KeyPressed(KeyCodes::SPACE)) {
+			return PushdownResult::Pop;
+		}
+		return PushdownResult::NoChange;
+	}
+	void OnAwake() override {
+		std::cout << "Press U to unpause game!\n";
+	}
+};*/
+
 void TutorialGame::UpdateGame(float dt) {
 	/*if (!inSelectionMode) {
 		world->GetMainCamera().UpdateCamera(dt);
@@ -219,10 +232,24 @@ void TutorialGame::UpdateGame(float dt) {
 		kitten->Update(dt);
 	}
 
+	sphereSpawnTimer += dt;
+	if (sphereSpawnTimer >= 5.0f) {
+		sphereSpawnTimer -= 5.0f;
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_int_distribution<> dist(-63, -55);
+		AddSphereToWorld(Vector3(0, 5, dist(gen)), 1.0f, 10.0f);
+	}
+
 	Debug::DrawLine(Vector3(2.5, 0, -2.5), Vector3(5, 100, -5), Vector4(0, 1, 0, 1));
 	Debug::DrawLine(Vector3(2.5, 0, 2.5), Vector3(5, 100, 5), Vector4(0, 1, 0, 1));
 	Debug::DrawLine(Vector3(-2.5, 0, 2.5), Vector3(5, 100, 5), Vector4(0, 1, 0, 1));
 	Debug::DrawLine(Vector3(-2.5, 0, -2.5), Vector3(5, 100, 5), Vector4(0, 1, 0, 1));
+
+	Debug::DrawLine(Vector3(50, 0, 50), Vector3(50, 100, 50), Vector4(1, 0, 0, 1));
+	Debug::DrawLine(Vector3(-50, 0, 50), Vector3(-50, 100, 50), Vector4(1, 0, 0, 1));
+	Debug::DrawLine(Vector3(-50, 0, -50), Vector3(-50, 100, -50), Vector4(1, 0, 0, 1));
+	Debug::DrawLine(Vector3(50, 0, -50), Vector3(50, 100, -50), Vector4(1, 0, 0, 1));
 
 
 	//SelectObject();
@@ -330,6 +357,10 @@ void TutorialGame::LockedObjectMovement() {
 			}
 		}
 	}
+
+	if (lockedObject->GetTransform().GetPosition().y < -30) {
+		lockedObject->GetTransform().SetPosition(Vector3(0, 2, 0));
+	}
 }
 
 void TutorialGame::DebugObjectMovement() {
@@ -390,8 +421,22 @@ void TutorialGame::InitWorld() {
 	//InitGameExamples();
 	AddPlayerToWorld(Vector3(0, 2, 0));
 	kittens.push_back(AddKittenToWorld(Vector3(0, 2, -5)));
+	kittens.push_back(AddKittenToWorld(Vector3(0, 2, 5)));
+	kittens.push_back(AddKittenToWorld(Vector3(5, 2, 0)));
+	kittens.push_back(AddKittenToWorld(Vector3(-5, 2, 0)));
+	kittens.push_back(AddKittenToWorld(Vector3(100, 5, -100)));
+	kittens.push_back(AddKittenToWorld(Vector3(0, 3, -75)));
 	InitDefaultFloor();
+	InitPlatformChallenge();
+	BridgeConstraintTest();
+	AddCubeToWorld(Vector3(0, 0, -75), Vector3(5, 1, 5), 0.0f);
 	//testStateObject = AddStateObjectToWorld(Vector3(0, 10, 0));
+}
+
+void TutorialGame::InitPlatformChallenge() {
+	AddCubeToWorld(Vector3(65, 0, -65), Vector3(10, 2, 10), 0.0f);
+	AddCubeToWorld(Vector3(85, 1, -85), Vector3(5, 2, 5), 0.0f);
+	AddCubeToWorld(Vector3(100, 2, -100), Vector3(5, 2, 5), 0.0f);
 }
 
 /*
@@ -402,7 +447,7 @@ A single function to add a large immoveable cube to the bottom of our world
 GameObject* TutorialGame::AddFloorToWorld(const Vector3& position) {
 	GameObject* floor = new GameObject();
 
-	Vector3 floorSize = Vector3(200, 2, 200);
+	Vector3 floorSize = Vector3(50, 2, 50);
 	AABBVolume* volume = new AABBVolume(floorSize);
 	floor->SetBoundingVolume((CollisionVolume*)volume);
 	floor->GetTransform()
@@ -452,8 +497,28 @@ GameObject* TutorialGame::AddSphereToWorld(const Vector3& position, float radius
 GameObject* TutorialGame::AddCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass) {
 	GameObject* cube = new GameObject();
 
-	//OBBVolume* volume = new OBBVolume(dimensions);
 	AABBVolume* volume = new AABBVolume(dimensions);
+	cube->SetBoundingVolume((CollisionVolume*)volume);
+
+	cube->GetTransform()
+		.SetPosition(position)
+		.SetScale(dimensions * 2.0f);
+
+	cube->SetRenderObject(new RenderObject(&cube->GetTransform(), cubeMesh, basicTex, basicShader));
+	cube->SetPhysicsObject(new PhysicsObject(&cube->GetTransform(), cube->GetBoundingVolume()));
+
+	cube->GetPhysicsObject()->SetInverseMass(inverseMass);
+	cube->GetPhysicsObject()->InitCubeInertia();
+
+	world->AddGameObject(cube);
+
+	return cube;
+}
+
+GameObject* TutorialGame::AddOBBCubeToWorld(const Vector3& position, Vector3 dimensions, float inverseMass) {
+	GameObject* cube = new GameObject();
+
+	OBBVolume* volume = new OBBVolume(dimensions);
 	cube->SetBoundingVolume((CollisionVolume*)volume);
 
 	cube->GetTransform()
@@ -638,27 +703,27 @@ void TutorialGame::InitCubeGridWorld(int numRows, int numCols, float rowSpacing,
 
 void TutorialGame::BridgeConstraintTest() {
 	// Define the size of each cube in the rope bridge
-	Vector3 cubeSize = Vector3(8, 8, 8);
+	Vector3 cubeSize = Vector3(1, 1, 1);
 
 	// Set the mass and distance properties
 	float invCubeMass = 5.0f; // The inverse mass of the cubes
-	int numLinks = 10;        // Number of links in the bridge
-	float maxDistance = 30.0f; // Maximum distance allowed by the constraint
-	float cubeDistance = 20.0f; // Spacing between cubes
+	int numLinks = 5;        // Number of links in the bridge
+	float maxDistance = 3; // Maximum distance allowed by the constraint
+	float cubeDistance = 2; // Spacing between cubes
 
 	// Define the starting position of the bridge
-	Vector3 startPos = Vector3(500, 500, 500);
+	Vector3 startPos = Vector3(0, 0, -55);
 
 	// Create the start and end points with infinite mass (fixed in place)
 	GameObject* start = AddCubeToWorld(startPos, cubeSize, 0.0f);
-	GameObject* end = AddCubeToWorld(startPos + Vector3((numLinks + 2) * cubeDistance, 0, 0), cubeSize, 0.0f);
+	GameObject* end = AddCubeToWorld(startPos + Vector3(0, 0, -((numLinks + 2) * cubeDistance)), cubeSize, 0.0f);
 
 	// Keep track of the previous cube in the chain
 	GameObject* previous = start;
 
 	// Create the intermediate cubes and connect them with constraints
 	for (int i = 0; i < numLinks; ++i) {
-		GameObject* block = AddCubeToWorld(startPos + Vector3((i + 1) * cubeDistance, 0, 0), cubeSize, invCubeMass);
+		GameObject* block = AddCubeToWorld(startPos + Vector3(0, 0, -((i + 1) * cubeDistance)), cubeSize, invCubeMass);
 
 		// Add a position constraint between the previous and current cube
 		PositionConstraint* constraint = new PositionConstraint(previous, block, maxDistance);
