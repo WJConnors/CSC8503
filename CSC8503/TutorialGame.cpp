@@ -38,6 +38,7 @@ namespace NCL {
 					Vector3 curPos = this->GetTransform().GetPosition();
 					Vector3 difference = playerPos - curPos;
 					float distance = Vector::Length(difference);
+					std::cout << distance << std::endl;
 					return (!home) && distance < 5;
 					}));
 
@@ -158,19 +159,6 @@ TutorialGame::~TutorialGame()	{
 	delete renderer;
 	delete world;
 }
-
-/*class StartScreen : public PushdownState {
-	PushdownResult OnUpdate(float dt, PushdownState** newState) override {
-		Debug::Print("Press space to begin", Vector2(5, 95), Debug::RED);
-		if (Window::GetKeyboard()->KeyPressed(KeyCodes::SPACE)) {
-			return PushdownResult::Pop;
-		}
-		return PushdownResult::NoChange;
-	}
-	void OnAwake() override {
-		std::cout << "Press U to unpause game!\n";
-	}
-};*/
 
 void TutorialGame::UpdateGame(float dt) {
 	/*if (!inSelectionMode) {
