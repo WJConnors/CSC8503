@@ -19,6 +19,8 @@ namespace NCL {
 
 			virtual void UpdateGame(float dt);
 
+			int score = 0;
+
 		protected:
 			void InitialiseAssets();
 
@@ -106,6 +108,7 @@ namespace NCL {
 			float lastJumpTime = -1.0f;
 			const float jumpCooldown = 0.3f;
 			float sphereSpawnTimer = 0.0f;
+			
 		};
 	}
 }

@@ -212,68 +212,8 @@ void TestBehaviourTree() {
 
 Window* w;
 
-class GameScreen : public PushdownState {
-	PushdownResult OnUpdate(float dt, PushdownState** newState) override {
-		while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
-			float dt = w->GetTimer().GetTimeDeltaSeconds();
-			if (dt > 0.1f) {
-				std::cout << "Skipping large time delta" << std::endl;
-				continue; //must have hit a breakpoint or something to have a 1 second frame time!
-			}
-			if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
-				w->ShowConsole(true);
-			}
-			if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
-				w->ShowConsole(false);
-			}
-
-			if (Window::GetKeyboard()->KeyPressed(KeyCodes::T)) {
-				w->SetWindowPosition(0, 0);
-			}
-
-			w->SetTitle("Gametech frame time:" + std::to_string(1000.0f * dt));
-			DisplayPathfinding();
-
-			g->UpdateGame(dt);
-		}
-		delete g;
-		return PushdownResult::Pop;
-	};
-	void OnAwake() override {
-		w->ShowOSPointer(false);
-		w->LockMouseToWindow(true);
-		g = new TutorialGame();
-		w->GetTimer().GetTimeDeltaSeconds();
-	}
-	TutorialGame* g;
-};
-
-class IntroScreen : public PushdownState {
-	PushdownResult OnUpdate(float dt, PushdownState** newState) override {
-		if (Window::GetKeyboard()->KeyPressed(KeyCodes::SPACE)) {
-			*newState = new GameScreen();
-			return PushdownResult::Push;
-		}
-		if (Window::GetKeyboard()->KeyPressed(KeyCodes::ESCAPE)) {
-			return PushdownResult::Pop;
-		}
-		return PushdownResult::NoChange;
-	};
-	void OnAwake() override {
-		std::cout << "Press space to start or escape to end" << std::endl;
-	}
-};
-
-void RunPushdownAutomata() {
-	PushdownMachine machine(new IntroScreen());
-	while (w->UpdateWindow()) {
-		float dt = w->GetTimer().GetTimeDeltaSeconds();
-		if (!machine.Update(dt)) {
-			return;
-		}
-	}
-}
-
+int highScore = -1;
+int score = -1;
 class TestPacketReceiver : public PacketReceiver {
 public:
 	TestPacketReceiver(std::string name) {
@@ -283,12 +223,51 @@ public:
 		if (type == String_Message) {
 			StringPacket* realPacket = (StringPacket*)payload;
 			std::string msg = realPacket->GetStringFromData();
-			std::cout << name << " received message: " << msg << std::endl;
+			int curScore = std::stoi(msg);
+			if (curScore > highScore) {
+				std::cout << "new highscore: " << curScore << std::endl;
+				highScore = curScore;
+			}
 		}
 	}
 protected:
 	std::string name;
 };
+
+void Client(int score) {
+	NetworkBase::Initialise();
+	TestPacketReceiver clientReceiver("Client");
+	int port = NetworkBase::GetDefaultPort();
+	GameClient* client = new GameClient();
+	client->RegisterPacketHandler(String_Message, &clientReceiver);
+	bool canConnect = client->Connect(127, 0, 0, 1, port);
+	if (!canConnect) {
+		std::cout << "Failed to connect to the server!" << std::endl;
+		return;
+	}
+	for (int i = 0; i < 100; i++) {
+		StringPacket clientPacket(std::to_string(score));
+		client->SendPacket(clientPacket);
+		client->UpdateClient();
+	}
+	NetworkBase::Destroy();
+}
+
+void Server() {
+	NetworkBase::Initialise();
+	TestPacketReceiver serverReceiver("Server");
+	int port = NetworkBase::GetDefaultPort();
+	GameServer* server = new GameServer(port, 1);
+	server->RegisterPacketHandler(String_Message, &serverReceiver);
+
+	while (true) {
+		StringPacket serverPacket("Server says hello!");
+		server->SendGlobalPacket(serverPacket);
+
+		server->UpdateServer();
+	}
+	NetworkBase::Destroy();
+}
 
 void TestNetworking() {
 	NetworkBase::Initialise();
@@ -322,6 +301,76 @@ void TestNetworking() {
 	NetworkBase::Destroy();
 }
 
+class GameScreen : public PushdownState {
+	PushdownResult OnUpdate(float dt, PushdownState** newState) override {
+		while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
+			float dt = w->GetTimer().GetTimeDeltaSeconds();
+			if (dt > 0.1f) {
+				std::cout << "Skipping large time delta" << std::endl;
+				continue; //must have hit a breakpoint or something to have a 1 second frame time!
+			}
+			if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
+				w->ShowConsole(true);
+			}
+			if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
+				w->ShowConsole(false);
+			}
+
+			if (Window::GetKeyboard()->KeyPressed(KeyCodes::T)) {
+				w->SetWindowPosition(0, 0);
+			}
+
+			w->SetTitle("Gametech frame time:" + std::to_string(1000.0f * dt));
+			DisplayPathfinding();
+
+			g->UpdateGame(dt);
+		}
+		Client(g->score);
+		delete g;
+		return PushdownResult::Pop;
+	};
+	void OnAwake() override {
+		w->ShowOSPointer(false);
+		w->LockMouseToWindow(true);
+		g = new TutorialGame();
+		w->GetTimer().GetTimeDeltaSeconds();
+	}
+	TutorialGame* g;
+};
+
+class IntroScreen : public PushdownState {
+	PushdownResult OnUpdate(float dt, PushdownState** newState) override {
+
+		if (Window::GetKeyboard()->KeyPressed(KeyCodes::SPACE)) {
+			*newState = new GameScreen();
+			return PushdownResult::Push;
+		}
+		if (Window::GetKeyboard()->KeyPressed(KeyCodes::ESCAPE)) {
+			return PushdownResult::Pop;
+		}
+		return PushdownResult::NoChange;
+	};
+	void OnAwake() override {
+		std::cout << "Press space to start or escape to end" << std::endl;
+
+	}
+};
+
+void RunPushdownAutomata() {
+	PushdownMachine machine(new IntroScreen());
+	while (w->UpdateWindow()) {
+		float dt = w->GetTimer().GetTimeDeltaSeconds();
+		if (!machine.Update(dt)) {
+			return;
+		}
+	}
+}
+
+
+
+
+
+
 /*
 
 The main function should look pretty familar to you!
@@ -342,6 +391,12 @@ int main() {
 	initInfo.width = 1280;
 	initInfo.height = 720;
 	initInfo.windowTitle = "CSC8503 Game technology!";
+
+	std::cout << "s or c" << std::endl;
+	char type;
+	std::cin >> type;
+
+	if (type == 's') Server();
 
 	w = Window::CreateGameWindow(initInfo);
 

@@ -38,7 +38,6 @@ namespace NCL {
 					Vector3 curPos = this->GetTransform().GetPosition();
 					Vector3 difference = playerPos - curPos;
 					float distance = Vector::Length(difference);
-					std::cout << distance << std::endl;
 					return (!home) && distance < 5;
 					}));
 
@@ -60,6 +59,7 @@ namespace NCL {
 			}
 
 			GameObject* player;
+			bool home;
 
 		protected:
 			void Wait() {
@@ -83,7 +83,7 @@ namespace NCL {
 
 			StateMachine* stateMachine;			
 
-			bool home;
+			
 		};
 	}
 }
@@ -216,7 +216,11 @@ void TutorialGame::UpdateGame(float dt) {
 	if (testStateObject) {
 		testStateObject->Update(dt);
 	}
+	score = 0;
 	for (auto kitten : kittens) {
+		if (kitten->home) {
+			score++;
+		}
 		kitten->Update(dt);
 	}
 
@@ -242,6 +246,8 @@ void TutorialGame::UpdateGame(float dt) {
 
 	//SelectObject();
 	//MoveSelectedObject();
+
+	Debug::Print("Score: " + std::to_string(score), Vector2(50, 50), Debug::RED);
 
 	world->UpdateWorld(dt);
 	renderer->Update(dt);
