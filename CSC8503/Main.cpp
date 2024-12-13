@@ -250,6 +250,7 @@ void Client(int score) {
 		client->SendPacket(clientPacket);
 		client->UpdateClient();
 	}
+	client->Destroy();
 	NetworkBase::Destroy();
 }
 
@@ -259,7 +260,6 @@ void Server() {
 	int port = NetworkBase::GetDefaultPort();
 	GameServer* server = new GameServer(port, 1);
 	server->RegisterPacketHandler(String_Message, &serverReceiver);
-
 	while (true) {
 		StringPacket serverPacket("Server says hello!");
 		server->SendGlobalPacket(serverPacket);
@@ -303,7 +303,7 @@ void TestNetworking() {
 
 class GameScreen : public PushdownState {
 	PushdownResult OnUpdate(float dt, PushdownState** newState) override {
-		while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
+		while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE) && !g->failed) {
 			float dt = w->GetTimer().GetTimeDeltaSeconds();
 			if (dt > 0.1f) {
 				std::cout << "Skipping large time delta" << std::endl;
@@ -325,6 +325,7 @@ class GameScreen : public PushdownState {
 
 			g->UpdateGame(dt);
 		}
+		std::cout << "final score: " << g->score << std::endl;
 		Client(g->score);
 		delete g;
 		return PushdownResult::Pop;
@@ -403,12 +404,12 @@ int main() {
 	if (!w->HasInitialised()) {
 		return -1;
 	}
-
+	TestPathfinding();
 	RunPushdownAutomata();
 
 
 
-	//TestPathfinding();
+	
 
 	Window::DestroyGameWindow();
 }

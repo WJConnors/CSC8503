@@ -12,6 +12,7 @@
 namespace NCL {
 	namespace CSC8503 {
 		class Kitten;
+		class Trapper;
 		class TutorialGame		{
 		public:
 			TutorialGame();
@@ -20,6 +21,7 @@ namespace NCL {
 			virtual void UpdateGame(float dt);
 
 			int score = 0;
+			bool failed = false;
 
 		protected:
 			void InitialiseAssets();
@@ -57,6 +59,7 @@ namespace NCL {
 
 			GameObject* AddPlayerToWorld(const Vector3& position);
 			Kitten* AddKittenToWorld(const Vector3& position);
+			Trapper* AddTrapperToWorld(const Vector3& position);
 			GameObject* AddEnemyToWorld(const Vector3& position);
 			GameObject* AddBonusToWorld(const Vector3& position);
 
@@ -103,6 +106,7 @@ namespace NCL {
 			StateGameObject* testStateObject;
 
 			GameObject* player;
+			Trapper* trapper;
 			vector<Kitten*> kittens;
 
 			float lastJumpTime = -1.0f;

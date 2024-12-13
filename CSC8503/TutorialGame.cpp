@@ -87,6 +87,81 @@ namespace NCL {
 		};
 	}
 }
+namespace NCL {
+	namespace CSC8503 {
+		class Trapper : public GameObject {
+		public:
+			Trapper(GameObject* playerCopy) : player(playerCopy) {
+				stateMachine = new StateMachine();
+
+				State* moveRandomly = new State([&](float dt)->void {
+					this->MoveAround(dt);
+					});
+
+				State* moveAtPlayer = new State([&](float dt)->void {
+					this->AttackPlayer(dt);
+					});
+
+				stateMachine->AddState(moveRandomly);
+				stateMachine->AddState(moveAtPlayer);
+
+				stateMachine->AddTransition(new StateTransition(moveRandomly, moveAtPlayer, [&]()->bool {
+					Vector3 playerPos = player->GetTransform().GetPosition();
+					Vector3 curPos = this->GetTransform().GetPosition();
+					Vector3 difference = playerPos - curPos;
+					float distance = Vector::Length(difference);
+					return distance < 10;
+					}));
+
+				stateMachine->AddTransition(new StateTransition(moveAtPlayer, moveRandomly, [&]()->bool {
+					Vector3 playerPos = player->GetTransform().GetPosition();
+					Vector3 curPos = this->GetTransform().GetPosition();
+					Vector3 difference = playerPos - curPos;
+					float distance = Vector::Length(difference);
+					return distance > 15;
+					}));
+
+			}
+
+			~Trapper() {
+				delete stateMachine;
+			}
+
+			virtual void Update(float dt) {
+				stateMachine->Update(dt);
+			}
+
+			GameObject* player;
+		protected:
+			void MoveAround(float dt) {
+				Vector3 curPos = this->GetTransform().GetPosition();
+				Vector3 difference = targetPos - curPos;
+				float distance = Vector::Length(difference);
+				if (targetPos.x == -60 || distance < 5) {
+					std::random_device rd;
+					std::mt19937 gen(rd());
+					std::uniform_int_distribution<> dist(-45, 45);
+					targetPos = Vector3(dist(gen), dist(gen), dist(gen));
+				}
+				Vector3 direction = targetPos - curPos;
+				direction = Vector::Normalise(direction);
+				Vector3 movement = direction * 2.0f * dt;
+				GetTransform().SetPosition(curPos + movement);
+			}
+
+			void AttackPlayer(float dt) {
+				Vector3 playerPos = player->GetTransform().GetPosition();
+				Vector3 curPos = GetTransform().GetPosition();
+				Vector3 direction = playerPos - curPos;
+				direction = Vector::Normalise(direction);
+				Vector3 movement = direction * 2.0f * dt;
+				GetTransform().SetPosition(curPos + movement);
+			}
+			StateMachine* stateMachine;
+			Vector3 targetPos = Vector3(-60, -1, -1);
+		};
+	}
+}
 
 using namespace NCL;
 using namespace CSC8503;
@@ -223,6 +298,7 @@ void TutorialGame::UpdateGame(float dt) {
 		}
 		kitten->Update(dt);
 	}
+	trapper->Update(dt);
 
 	sphereSpawnTimer += dt;
 	if (sphereSpawnTimer >= 5.0f) {
@@ -231,6 +307,12 @@ void TutorialGame::UpdateGame(float dt) {
 		std::mt19937 gen(rd());
 		std::uniform_int_distribution<> dist(-63, -55);
 		AddSphereToWorld(Vector3(0, 5, dist(gen)), 1.0f, 10.0f);
+	}
+
+	Vector3 trapperDist = trapper->GetTransform().GetPosition() - player->GetTransform().GetPosition();
+	float vecLength = Vector::Length(trapperDist);
+	if (vecLength < 1.5f) {
+		failed = true;
 	}
 
 	Debug::DrawLine(Vector3(2.5, 0, -2.5), Vector3(5, 100, -5), Vector4(0, 1, 0, 1));
@@ -353,7 +435,7 @@ void TutorialGame::LockedObjectMovement() {
 	}
 
 	if (lockedObject->GetTransform().GetPosition().y < -30) {
-		lockedObject->GetTransform().SetPosition(Vector3(0, 2, 0));
+		failed = true;
 	}
 }
 
@@ -424,6 +506,7 @@ void TutorialGame::InitWorld() {
 	InitPlatformChallenge();
 	BridgeConstraintTest();
 	AddCubeToWorld(Vector3(0, 0, -75), Vector3(5, 1, 5), 0.0f);
+	AddTrapperToWorld(Vector3(20, 20, 20));
 	//testStateObject = AddStateObjectToWorld(Vector3(0, 10, 0));
 }
 
@@ -431,6 +514,10 @@ void TutorialGame::InitPlatformChallenge() {
 	AddCubeToWorld(Vector3(65, 0, -65), Vector3(10, 2, 10), 0.0f);
 	AddCubeToWorld(Vector3(85, 1, -85), Vector3(5, 2, 5), 0.0f);
 	AddCubeToWorld(Vector3(100, 2, -100), Vector3(5, 2, 5), 0.0f);
+	AddCubeToWorld(Vector3(70, 3, -70), Vector3(1, 1, 1), 10.0f);
+	AddCubeToWorld(Vector3(69, 3, -69), Vector3(1, 1, 1), 10.0f);
+	AddCubeToWorld(Vector3(68, 3, -68), Vector3(1, 1, 1), 10.0f);
+	AddCubeToWorld(Vector3(67, 3, -67), Vector3(1, 1, 1), 10.0f);
 }
 
 /*
@@ -582,6 +669,32 @@ Kitten* TutorialGame::AddKittenToWorld(const Vector3& position) {
 	world->AddGameObject(kitten);
 
 	return kitten;
+}
+
+Trapper* TutorialGame::AddTrapperToWorld(const Vector3& position) {
+	float meshsize = 0.8f;
+	float inverseMass = 1.0f;
+
+	trapper = new Trapper(player);
+
+	AABBVolume* volume = new AABBVolume(Vector3(0.8f, 0.8f, 0.8f));
+	trapper->SetBoundingVolume((CollisionVolume*)volume);
+
+	trapper->GetTransform()
+		.SetPosition(position)
+		.SetScale(Vector3(0.8f, 0.8f, 0.8f));
+
+	trapper->SetRenderObject(new RenderObject(&trapper->GetTransform(), cubeMesh, basicTex, basicShader));
+	trapper->SetPhysicsObject(new PhysicsObject(&trapper->GetTransform(), trapper->GetBoundingVolume()));
+
+	trapper->GetPhysicsObject()->SetInverseMass(inverseMass);
+	trapper->GetPhysicsObject()->InitCubeInertia();
+
+	trapper->GetRenderObject()->SetColour(Vector4(1, 0, 0, 1));
+
+	world->AddGameObject(trapper);
+
+	return trapper;
 }
 
 GameObject* TutorialGame::AddEnemyToWorld(const Vector3& position) {
